@@ -1,36 +1,33 @@
 const express = require('express');
 const { ServerConfig } = require('./src/config');
 const apiRoutes = require('./src/routes');
+const db = require('./src/models');
 const cors = require('cors');
-const db = require('./src/models');        
 const helmet = require('helmet');
 const morgan = require('morgan');
+const cookieParser = require('cookie-parser');
 
 const app = express();
 
-// Security + logging middleware
 app.use(helmet());
 app.use(cors({
     origin: 'http://localhost:5173',
     credentials: true
 }));
 app.use(morgan('dev'));
-
-// Body parsing middleware
+app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Routes
 app.use('/api', apiRoutes);
 
-// 404 handler — catches any route not defined above
 app.use((req, res) => {
     res.status(404).json({
         success: false,
         message: `Route ${req.originalUrl} not found`
     });
 });
-// Start server only after DB connects
+
 db.sequelize
     .authenticate()
     .then(() => {
@@ -41,5 +38,5 @@ db.sequelize
     })
     .catch((err) => {
         console.error('Unable to connect to database:', err);
-        process.exit(1);  // crash hard if DB fails — don't start server
+        process.exit(1);
     });
