@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const authRoutes = require('./auth-routes');
+const documentRoutes = require('./document-routes');
 
 router.get('/health', (req, res) => {
     res.json({
@@ -11,5 +12,6 @@ router.get('/health', (req, res) => {
 });
 
 router.use('/auth', authRoutes);
+router.use('/documents', documentRoutes);
 
 module.exports = router;
