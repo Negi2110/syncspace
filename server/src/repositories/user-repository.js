@@ -35,6 +35,20 @@ class UserRepository extends CrudRepository {
         });
         return !!user; // returns true or false
     }
+
+    // Override get to never return password
+async get(id) {
+    const user = await User.findByPk(id, {
+        attributes: { exclude: ['password'] }
+    });
+    if (!user) {
+        throw new AppError(
+            'Not able to find the resource',
+            StatusCodes.NOT_FOUND
+        );
+    }
+    return user;
+}
 }
 
 module.exports = UserRepository;
