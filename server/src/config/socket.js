@@ -5,9 +5,22 @@ const { UserRepository } = require('../repositories');
 
 const userRepository = new UserRepository();
 
-// Track who is in which document room
-// { documentId: [{ userId, name, avatar, socketId }] }
+// Track presence per document
+// { documentId: [{ userId, name, avatar, socketId, color }] }
 const documentPresence = {};
+
+// Assign unique color to each user in a document
+const CURSOR_COLORS = [
+    '#F44336', '#E91E63', '#9C27B0', '#673AB7',
+    '#3F51B5', '#2196F3', '#00BCD4', '#009688',
+    '#4CAF50', '#FF9800', '#FF5722'
+];
+
+function getUserColor(documentId, userId) {
+    const users = documentPresence[documentId] || [];
+    const index = users.findIndex(u => u.userId === userId);
+    return CURSOR_COLORS[index % CURSOR_COLORS.length];
+}
 
 function initSocket(server) {
     const io = new Server(server, {
@@ -18,76 +31,110 @@ function initSocket(server) {
         }
     });
 
-    // Auth middleware for socket connections
+    // Auth middleware
     io.use(async (socket, next) => {
-    try {
-        const token = socket.handshake.auth.token;
+        try {
+            const token = socket.handshake.auth.token;
+            if (!token) return next(new Error('No token provided'));
 
-        if (!token) {
-            return next(new Error('No token provided'));
+            const decoded = jwt.verify(token, ServerConfig.JWT_ACCESS_SECRET);
+            const user = await userRepository.get(decoded.id);
+            socket.user = user;
+            next();
+        } catch (error) {
+            next(new Error('Invalid token'));
         }
-
-
-        const decoded = jwt.verify(
-            token,
-            ServerConfig.JWT_ACCESS_SECRET
-        );
-
-        const user = await userRepository.get(decoded.id);
-        socket.user = user;
-        next();
-    } catch (error) {
-        console.log('Socket auth error:', error.message);
-        next(new Error('Invalid token'));
-    }
-});
+    });
 
     io.on('connection', (socket) => {
         console.log(`User connected: ${socket.user.name} (${socket.id})`);
 
-        // User opens a document
+        // ─── JOIN DOCUMENT ───────────────────────────────────
         socket.on('join-document', (documentId) => {
             socket.join(documentId);
+            socket.currentDocument = documentId;
 
-            // Add to presence tracking
             if (!documentPresence[documentId]) {
                 documentPresence[documentId] = [];
             }
 
-            // Remove any existing entry for this user
+            // Remove stale entry for this user
             documentPresence[documentId] = documentPresence[documentId]
                 .filter(u => u.userId !== socket.user.id);
 
-            // Add fresh entry
+            // Add with color
             documentPresence[documentId].push({
                 userId: socket.user.id,
                 name: socket.user.name,
                 avatar: socket.user.avatar,
-                socketId: socket.id
+                socketId: socket.id,
+                color: getUserColor(documentId, socket.user.id)
             });
 
-            // Tell everyone in room who is present
+            // Broadcast presence to room
             io.to(documentId).emit(
                 'presence-update',
                 documentPresence[documentId]
             );
 
-            console.log(
-                `${socket.user.name} joined document ${documentId}`
-            );
+            console.log(`${socket.user.name} joined document ${documentId}`);
         });
 
-        // User closes a document
+        // ─── DOCUMENT CHANGE ─────────────────────────────────
+        // User typed something — broadcast to others in room
+        socket.on('document-change', (data) => {
+            const { documentId, delta, timestamp } = data;
+
+            // Broadcast to everyone EXCEPT the sender
+            socket.to(documentId).emit('document-update', {
+                delta,
+                timestamp,
+                userId: socket.user.id,
+                userName: socket.user.name
+            });
+        });
+
+        // ─── CURSOR MOVE ──────────────────────────────────────
+        // User moved cursor — broadcast position to others
+        socket.on('cursor-move', (data) => {
+            const { documentId, position } = data;
+
+            // Get this user's color
+            const presenceEntry = (documentPresence[documentId] || [])
+                .find(u => u.userId === socket.user.id);
+
+            socket.to(documentId).emit('cursor-update', {
+                userId: socket.user.id,
+                name: socket.user.name,
+                color: presenceEntry?.color || '#2196F3',
+                position
+            });
+        });
+
+        // ─── TYPING INDICATOR ────────────────────────────────
+        socket.on('typing-start', (documentId) => {
+            socket.to(documentId).emit('user-typing', {
+                userId: socket.user.id,
+                name: socket.user.name
+            });
+        });
+
+        socket.on('typing-stop', (documentId) => {
+            socket.to(documentId).emit('user-stopped-typing', {
+                userId: socket.user.id
+            });
+        });
+
+        // ─── LEAVE DOCUMENT ──────────────────────────────────
         socket.on('leave-document', (documentId) => {
             socket.leave(documentId);
+            socket.currentDocument = null;
             removeFromPresence(documentId, socket.id, io);
         });
 
-        // User disconnects (closes browser/tab)
+        // ─── DISCONNECT ───────────────────────────────────────
         socket.on('disconnect', () => {
             console.log(`User disconnected: ${socket.user.name}`);
-
-            // Remove from all document rooms they were in
             Object.keys(documentPresence).forEach(documentId => {
                 removeFromPresence(documentId, socket.id, io);
             });
@@ -103,13 +150,11 @@ function removeFromPresence(documentId, socketId, io) {
     documentPresence[documentId] = documentPresence[documentId]
         .filter(u => u.socketId !== socketId);
 
-    // Notify remaining users
     io.to(documentId).emit(
         'presence-update',
         documentPresence[documentId]
     );
 
-    // Clean up empty rooms
     if (documentPresence[documentId].length === 0) {
         delete documentPresence[documentId];
     }
