@@ -3,6 +3,7 @@ module.exports = {
     DocumentService: require('./document-service'),
     CollaboratorService: require('./collaborator-service'),
     VersionService: require('./version-service'),
-    AiService: require('./ai-service')
+    AiService: require('./ai-service'),
+    ExportService: require('./export-service')
 
 }
