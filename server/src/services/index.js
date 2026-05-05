@@ -1,4 +1,5 @@
 module.exports = {
     AuthService: require('./auth-service'),
-    DocumentService: require('./document-service')
+    DocumentService: require('./document-service'),
+    CollaboratorService: require('./collaborator-service')    
 }
