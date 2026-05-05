@@ -3,6 +3,7 @@ const router = express.Router();
 const authRoutes = require('./auth-routes');
 const documentRoutes = require('./document-routes');
 const collaboratorRoutes = require('./collaborator-routes');
+const versionRoutes = require('./version-routes');
 
 
 router.get('/health', (req, res) => {
@@ -16,6 +17,8 @@ router.get('/health', (req, res) => {
 router.use('/auth', authRoutes);
 router.use('/documents', documentRoutes);
 router.use('/documents/:id/collaborators', collaboratorRoutes);
+router.use('/documents/:id/versions', versionRoutes);
+
 
 
 module.exports = router;
