@@ -139,6 +139,69 @@ function initSocket(server) {
                 removeFromPresence(documentId, socket.id, io);
             });
         });
+
+        // ─── VOICE ROOM ───────────────────────────────────────
+// User starts a voice call in a document
+socket.on('voice-start', (documentId) => {
+    // Notify everyone in the document room
+    // that a call has started
+    io.to(documentId).emit('voice-room-started', {
+        startedBy: {
+            userId: socket.user.id,
+            name: socket.user.name,
+            avatar: socket.user.avatar
+        },
+        documentId
+    });
+
+    console.log(`${socket.user.name} started voice room in doc ${documentId}`);
+});
+
+// User joins the voice call
+socket.on('voice-join', (data) => {
+    const { documentId, peerId } = data;
+
+    // Tell everyone else in the room that
+    // this user joined with their peerId
+    // Other users will initiate peer connection
+    socket.to(documentId).emit('voice-user-joined', {
+        userId: socket.user.id,
+        name: socket.user.name,
+        avatar: socket.user.avatar,
+        peerId
+    });
+
+    console.log(`${socket.user.name} joined voice room in doc ${documentId}`);
+});
+
+// User is speaking — detected via Web Audio API
+socket.on('voice-speaking', (data) => {
+    const { documentId, isSpeaking } = data;
+
+    socket.to(documentId).emit('voice-speaking-update', {
+        userId: socket.user.id,
+        isSpeaking
+    });
+});
+
+// User leaves the voice call
+socket.on('voice-leave', (documentId) => {
+    socket.to(documentId).emit('voice-user-left', {
+        userId: socket.user.id,
+        name: socket.user.name
+    });
+
+    console.log(`${socket.user.name} left voice room in doc ${documentId}`);
+});
+
+// User ends the entire call for everyone
+socket.on('voice-end', (documentId) => {
+    io.to(documentId).emit('voice-room-ended', {
+        endedBy: socket.user.name
+    });
+
+    console.log(`${socket.user.name} ended voice room in doc ${documentId}`);
+});
     });
 
     return io;
