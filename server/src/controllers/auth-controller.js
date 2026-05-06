@@ -4,10 +4,20 @@ const { SuccessResponse, ErrorResponse } = require('../utils/common');
 
 async function register(req, res) {
     try {
+        const { name, email, password } = req.body;
+
+        // Add these 3 lines
+        if (!name || !email || !password) {
+            return res.status(StatusCodes.BAD_REQUEST).json({
+                success: false,
+                message: 'Name, email and password are required'
+            });
+        }
+
         const response = await AuthService.register({
-            name: req.body.name,
-            email: req.body.email,
-            password: req.body.password
+            name,
+            email,
+            password
         });
 
         // Set refresh token in httpOnly cookie
