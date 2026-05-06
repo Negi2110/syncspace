@@ -93,12 +93,12 @@ describe('Document API', () => {
 
     describe('GET /api/v1/documents/share/:token', () => {
         it('should return document via share token without auth', async () => {
-            const res = await request(app)
-                .get('/api/v1/documents/share/2b41c0f715ed33717fbb64c939c2a2c7');
+    const res = await request(app)
+        .get('/api/v1/documents/share/demo-share-token-001');
 
-            expect(res.statusCode).toBe(200);
-            expect(res.body.success).toBe(true);
-        });
+    expect(res.statusCode).toBe(200);
+    expect(res.body.success).toBe(true);
+});
 
         it('should return 404 for invalid share token', async () => {
             const res = await request(app)
