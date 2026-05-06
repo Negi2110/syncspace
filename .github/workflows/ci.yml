@@ -1,0 +1,92 @@
+name: SyncSpace CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: syncspace_user
+          POSTGRES_PASSWORD: syncspace123
+          POSTGRES_DB: syncspace_dev
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install dependencies
+        working-directory: server
+        run: npm ci
+
+      - name: Run database migrations
+        working-directory: server
+        env:
+          PORT: 5000
+          NODE_ENV: development
+          DB_USER: syncspace_user
+          DB_PASSWORD: syncspace123
+          DB_NAME: syncspace_dev
+          DB_HOST: localhost
+          DB_PORT: 5432
+          JWT_ACCESS_SECRET: test_access_secret
+          JWT_REFRESH_SECRET: test_refresh_secret
+          JWT_ACCESS_EXPIRY: 15m
+          JWT_REFRESH_EXPIRY: 7d
+          GEMINI_API_KEY: test_key
+        run: npx sequelize-cli db:migrate
+
+      - name: Run database seeders
+        working-directory: server
+        env:
+          PORT: 5000
+          NODE_ENV: development
+          DB_USER: syncspace_user
+          DB_PASSWORD: syncspace123
+          DB_NAME: syncspace_dev
+          DB_HOST: localhost
+          DB_PORT: 5432
+          JWT_ACCESS_SECRET: test_access_secret
+          JWT_REFRESH_SECRET: test_refresh_secret
+          JWT_ACCESS_EXPIRY: 15m
+          JWT_REFRESH_EXPIRY: 7d
+          GEMINI_API_KEY: test_key
+        run: npx sequelize-cli db:seed:all
+
+      - name: Run tests
+        working-directory: server
+        env:
+          PORT: 5000
+          NODE_ENV: development
+          DB_USER: syncspace_user
+          DB_PASSWORD: syncspace123
+          DB_NAME: syncspace_dev
+          DB_HOST: localhost
+          DB_PORT: 5432
+          JWT_ACCESS_SECRET: test_access_secret
+          JWT_REFRESH_SECRET: test_refresh_secret
+          JWT_ACCESS_EXPIRY: 15m
+          JWT_REFRESH_EXPIRY: 7d
+          GEMINI_API_KEY: test_key
+        run: npm test
