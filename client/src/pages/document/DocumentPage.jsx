@@ -7,6 +7,8 @@ import Editor from '../../components/editor/Editor';
 import PresenceAvatars from '../../components/ui/PresenceAvatars';
 import VoiceRoom from '../../components/editor/VoiceRoom';
 import AISidebar from '../../components/editor/AISidebar';
+import VersionHistory from '../../components/editor/VersionHistory';
+import ShareModal from '../../components/ui/ShareModal';
 
 function useDebounce(callback, delay) {
     const timeoutRef = useRef(null);
@@ -30,6 +32,9 @@ export default function DocumentPage() {
     const [error, setError] = useState('');
     const [presence, setPresence] = useState([]);
     const [aiOpen, setAiOpen] = useState(false);
+    const [versionOpen, setVersionOpen] = useState(false);
+    const [shareOpen, setShareOpen] = useState(false);
+
 
     useEffect(() => {
         fetchDocument();
@@ -175,39 +180,64 @@ export default function DocumentPage() {
                 </div>
 
                 {/* Right — voice + presence + save status */}
-{/* Right — AI + voice + presence + save status */}
-<div className="flex items-center gap-4">
-    <button
-        onClick={() => setAiOpen(prev => !prev)}
-        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg
+                {/* Right — AI + voice + presence + save status */}
+                <div className="flex items-center gap-4">
+                    <button
+                        onClick={() => setAiOpen(prev => !prev)}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg
                     text-xs transition-all
                     ${aiOpen
-                        ? 'bg-primary-600 text-white'
-                        : 'bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300'
-                    }`}
-        title="AI Assistant"
-    >
-        <span>🤖</span>
-        <span className="hidden md:block">AI</span>
-    </button>
-    <VoiceRoom documentId={id} />
-    <PresenceAvatars users={presence} />
-    <span className={`text-xs ${
-        saveStatus === 'saved'   ? 'text-slate-500' :
-        saveStatus === 'saving'  ? 'text-yellow-400' :
-        saveStatus === 'unsaved' ? 'text-slate-400' :
-        'text-red-400'
-    }`}>
-        {saveStatus === 'saved'   && '✓ Saved'}
-        {saveStatus === 'saving'  && 'Saving...'}
-        {saveStatus === 'unsaved' && 'Unsaved changes'}
-        {saveStatus === 'error'   && 'Save failed'}
-    </span>
-</div>
+                                ? 'bg-primary-600 text-white'
+                                : 'bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300'
+                            }`}
+                        title="AI Assistant"
+                    >
+                        <span>🤖</span>
+                        <span className="hidden md:block">AI</span>
+                    </button>
+                    {/* Version History Button */}
+                    <button
+                        onClick={() => setVersionOpen(prev => !prev)}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg
+                text-xs transition-all
+                ${versionOpen
+                                ? 'bg-primary-600 text-white'
+                                : 'bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300'
+                            }`}
+                        title="Version History"
+                    >
+                        <span>🕐</span>
+                        <span className="hidden md:block">History</span>
+                    </button>
+
+                    {/* Share Button */}
+                    <button
+                        onClick={() => setShareOpen(true)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg
+               text-xs bg-slate-800 hover:bg-slate-700
+               border border-slate-700 text-slate-300 transition-all"
+                        title="Share document"
+                    >
+                        <span>🔗</span>
+                        <span className="hidden md:block">Share</span>
+                    </button>
+                    <VoiceRoom documentId={id} />
+                    <PresenceAvatars users={presence} />
+                    <span className={`text-xs ${saveStatus === 'saved' ? 'text-slate-500' :
+                            saveStatus === 'saving' ? 'text-yellow-400' :
+                                saveStatus === 'unsaved' ? 'text-slate-400' :
+                                    'text-red-400'
+                        }`}>
+                        {saveStatus === 'saved' && '✓ Saved'}
+                        {saveStatus === 'saving' && 'Saving...'}
+                        {saveStatus === 'unsaved' && 'Unsaved changes'}
+                        {saveStatus === 'error' && 'Save failed'}
+                    </span>
+                </div>
             </div>
 
-           {/* Editor */}
-            <div className={`flex-1 pt-14 transition-all duration-300 ${aiOpen ? 'mr-80' : ''}`}>
+            {/* Editor */}
+            <div className={`flex-1 pt-14 transition-all duration-300 ${(aiOpen || versionOpen) ? 'mr-80' : ''}`}>
                 <div className="max-w-4xl mx-auto min-h-full">
                     <Editor
                         content={document?.content}
@@ -222,6 +252,21 @@ export default function DocumentPage() {
                 onClose={() => setAiOpen(false)}
                 documentContent={document?.content}
                 documentTitle={title}
+            />
+            <VersionHistory
+                isOpen={versionOpen}
+                onClose={() => setVersionOpen(false)}
+                documentId={id}
+                onRestore={(content) => {
+                    setDocument(prev => ({ ...prev, content }));
+                }}
+            />
+
+            <ShareModal
+                isOpen={shareOpen}
+                onClose={() => setShareOpen(false)}
+                document={document}
+                onUpdate={(updated) => setDocument(updated)}
             />
         </div>
     );

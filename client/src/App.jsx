@@ -5,6 +5,8 @@ import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
 import DashboardPage from './pages/dashboard/DashboardPage';
 import DocumentPage from './pages/document/DocumentPage';
+import SharedDocumentPage from './pages/document/SharedDocumentPage';
+
 
 function ProtectedRoute({ children }) {
     const { isAuthenticated, loading } = useAuth();
@@ -36,6 +38,8 @@ function AppRoutes() {
             <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
             <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
             <Route path="/document/:id" element={<ProtectedRoute><DocumentPage /></ProtectedRoute>} />
+            <Route path="/document/shared/:token" element={<SharedDocumentPage />} />
+
         </Routes>
     );
 }
