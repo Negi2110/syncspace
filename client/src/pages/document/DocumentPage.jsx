@@ -6,6 +6,7 @@ import { useSocket } from '../../context/SocketContext';
 import Editor from '../../components/editor/Editor';
 import PresenceAvatars from '../../components/ui/PresenceAvatars';
 import VoiceRoom from '../../components/editor/VoiceRoom';
+import AISidebar from '../../components/editor/AISidebar';
 
 function useDebounce(callback, delay) {
     const timeoutRef = useRef(null);
@@ -28,6 +29,7 @@ export default function DocumentPage() {
     const [editingTitle, setEditingTitle] = useState(false);
     const [error, setError] = useState('');
     const [presence, setPresence] = useState([]);
+    const [aiOpen, setAiOpen] = useState(false);
 
     useEffect(() => {
         fetchDocument();
@@ -173,7 +175,21 @@ export default function DocumentPage() {
                 </div>
 
                 {/* Right — voice + presence + save status */}
+{/* Right — AI + voice + presence + save status */}
 <div className="flex items-center gap-4">
+    <button
+        onClick={() => setAiOpen(prev => !prev)}
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg
+                    text-xs transition-all
+                    ${aiOpen
+                        ? 'bg-primary-600 text-white'
+                        : 'bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300'
+                    }`}
+        title="AI Assistant"
+    >
+        <span>🤖</span>
+        <span className="hidden md:block">AI</span>
+    </button>
     <VoiceRoom documentId={id} />
     <PresenceAvatars users={presence} />
     <span className={`text-xs ${
@@ -190,8 +206,8 @@ export default function DocumentPage() {
 </div>
             </div>
 
-            {/* Editor */}
-            <div className="flex-1 pt-14">
+           {/* Editor */}
+            <div className={`flex-1 pt-14 transition-all duration-300 ${aiOpen ? 'mr-80' : ''}`}>
                 <div className="max-w-4xl mx-auto min-h-full">
                     <Editor
                         content={document?.content}
@@ -200,6 +216,13 @@ export default function DocumentPage() {
                     />
                 </div>
             </div>
+
+            <AISidebar
+                isOpen={aiOpen}
+                onClose={() => setAiOpen(false)}
+                documentContent={document?.content}
+                documentTitle={title}
+            />
         </div>
     );
 }
