@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useSocket } from '../../context/SocketContext';
 import Editor from '../../components/editor/Editor';
 import PresenceAvatars from '../../components/ui/PresenceAvatars';
+import VoiceRoom from '../../components/editor/VoiceRoom';
 
 function useDebounce(callback, delay) {
     const timeoutRef = useRef(null);
@@ -171,22 +172,22 @@ export default function DocumentPage() {
                     )}
                 </div>
 
-                {/* Right — presence + save status */}
-                <div className="flex items-center gap-6">
-                    <PresenceAvatars users={presence} />
-
-                    <span className={`text-xs ${
-                        saveStatus === 'saved'   ? 'text-slate-500' :
-                        saveStatus === 'saving'  ? 'text-yellow-400' :
-                        saveStatus === 'unsaved' ? 'text-slate-400' :
-                        'text-red-400'
-                    }`}>
-                        {saveStatus === 'saved'   && '✓ Saved'}
-                        {saveStatus === 'saving'  && 'Saving...'}
-                        {saveStatus === 'unsaved' && 'Unsaved changes'}
-                        {saveStatus === 'error'   && 'Save failed'}
-                    </span>
-                </div>
+                {/* Right — voice + presence + save status */}
+<div className="flex items-center gap-4">
+    <VoiceRoom documentId={id} />
+    <PresenceAvatars users={presence} />
+    <span className={`text-xs ${
+        saveStatus === 'saved'   ? 'text-slate-500' :
+        saveStatus === 'saving'  ? 'text-yellow-400' :
+        saveStatus === 'unsaved' ? 'text-slate-400' :
+        'text-red-400'
+    }`}>
+        {saveStatus === 'saved'   && '✓ Saved'}
+        {saveStatus === 'saving'  && 'Saving...'}
+        {saveStatus === 'unsaved' && 'Unsaved changes'}
+        {saveStatus === 'error'   && 'Save failed'}
+    </span>
+</div>
             </div>
 
             {/* Editor */}
