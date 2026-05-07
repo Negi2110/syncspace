@@ -2,17 +2,15 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { documentService } from '../../services/documentService';
 import { useAuth } from '../../context/AuthContext';
+import { useSocket } from '../../context/SocketContext';
 import Editor from '../../components/editor/Editor';
+import PresenceAvatars from '../../components/ui/PresenceAvatars';
 
-// Debounce helper
 function useDebounce(callback, delay) {
     const timeoutRef = useRef(null);
-
     return useCallback((...args) => {
         if (timeoutRef.current) clearTimeout(timeoutRef.current);
-        timeoutRef.current = setTimeout(() => {
-            callback(...args);
-        }, delay);
+        timeoutRef.current = setTimeout(() => callback(...args), delay);
     }, [callback, delay]);
 }
 
@@ -20,6 +18,7 @@ export default function DocumentPage() {
     const { id } = useParams();
     const navigate = useNavigate();
     const { user } = useAuth();
+    const { socket } = useSocket();
 
     const [document, setDocument] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -27,10 +26,39 @@ export default function DocumentPage() {
     const [title, setTitle] = useState('');
     const [editingTitle, setEditingTitle] = useState(false);
     const [error, setError] = useState('');
+    const [presence, setPresence] = useState([]);
 
     useEffect(() => {
         fetchDocument();
     }, [id]);
+
+    // Socket real-time setup
+    useEffect(() => {
+        if (!socket) return;
+
+        // Join document room
+        socket.emit('join-document', id);
+
+        // Listen for presence updates
+        socket.on('presence-update', (users) => {
+            // Filter out current user from display
+            setPresence(users.filter(u => u.userId !== user?.id));
+        });
+
+        // Listen for document changes from others
+        socket.on('document-update', (data) => {
+            setDocument(prev => {
+                if (!prev) return prev;
+                return { ...prev, content: data.delta };
+            });
+        });
+
+        return () => {
+            socket.emit('leave-document', id);
+            socket.off('presence-update');
+            socket.off('document-update');
+        };
+    }, [socket, id, user]);
 
     async function fetchDocument() {
         try {
@@ -44,7 +72,6 @@ export default function DocumentPage() {
         }
     }
 
-    // Autosave content — debounced 3 seconds
     const saveContent = useCallback(async (content) => {
         try {
             setSaveStatus('saving');
@@ -61,9 +88,17 @@ export default function DocumentPage() {
         setDocument(prev => ({ ...prev, content }));
         setSaveStatus('unsaved');
         debouncedSave(content);
+
+        // Broadcast change to other users
+        if (socket) {
+            socket.emit('document-change', {
+                documentId: id,
+                delta: content,
+                timestamp: Date.now()
+            });
+        }
     }
 
-    // Save title on blur
     async function handleTitleSave() {
         setEditingTitle(false);
         if (title !== document.title) {
@@ -75,8 +110,6 @@ export default function DocumentPage() {
             }
         }
     }
-
-    const isOwner = document?.ownerId === user?.id;
 
     if (loading) {
         return (
@@ -102,13 +135,15 @@ export default function DocumentPage() {
 
     return (
         <div className="min-h-screen bg-slate-900 flex flex-col">
-            {/* Doc Header */}
-            <div className="h-14 bg-slate-900 border-b border-slate-800 px-6 flex items-center justify-between fixed top-0 left-0 right-0 z-50">
-                {/* Back + Title */}
+            {/* Header */}
+            <div className="h-14 bg-slate-900 border-b border-slate-800 px-6
+                            flex items-center justify-between
+                            fixed top-0 left-0 right-0 z-50">
+                {/* Left — back + title */}
                 <div className="flex items-center gap-4">
                     <button
                         onClick={() => navigate('/dashboard')}
-                        className="text-slate-400 hover:text-slate-200 transition-colors"
+                        className="text-slate-400 hover:text-slate-200 transition-colors text-lg"
                     >
                         ←
                     </button>
@@ -126,9 +161,9 @@ export default function DocumentPage() {
                         />
                     ) : (
                         <h1
-                            className="text-white font-semibold text-lg cursor-pointer
-                                       hover:text-slate-300 transition-colors"
                             onClick={() => setEditingTitle(true)}
+                            className="text-white font-semibold text-lg
+                                       cursor-pointer hover:text-slate-300"
                             title="Click to edit title"
                         >
                             {title}
@@ -136,19 +171,20 @@ export default function DocumentPage() {
                     )}
                 </div>
 
-                {/* Right side */}
-                <div className="flex items-center gap-4">
-                    {/* Save status */}
+                {/* Right — presence + save status */}
+                <div className="flex items-center gap-6">
+                    <PresenceAvatars users={presence} />
+
                     <span className={`text-xs ${
-                        saveStatus === 'saved' ? 'text-slate-500' :
-                        saveStatus === 'saving' ? 'text-yellow-400' :
+                        saveStatus === 'saved'   ? 'text-slate-500' :
+                        saveStatus === 'saving'  ? 'text-yellow-400' :
                         saveStatus === 'unsaved' ? 'text-slate-400' :
                         'text-red-400'
                     }`}>
-                        {saveStatus === 'saved' && '✓ Saved'}
-                        {saveStatus === 'saving' && 'Saving...'}
+                        {saveStatus === 'saved'   && '✓ Saved'}
+                        {saveStatus === 'saving'  && 'Saving...'}
                         {saveStatus === 'unsaved' && 'Unsaved changes'}
-                        {saveStatus === 'error' && 'Save failed'}
+                        {saveStatus === 'error'   && 'Save failed'}
                     </span>
                 </div>
             </div>

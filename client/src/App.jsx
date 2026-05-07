@@ -1,11 +1,11 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { SocketProvider } from './context/SocketContext';
 import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
 import DashboardPage from './pages/dashboard/DashboardPage';
 import DocumentPage from './pages/document/DocumentPage';
 
-// Protected route wrapper
 function ProtectedRoute({ children }) {
     const { isAuthenticated, loading } = useAuth();
 
@@ -20,12 +20,9 @@ function ProtectedRoute({ children }) {
     return isAuthenticated ? children : <Navigate to="/login" replace />;
 }
 
-// Public route — redirect if already logged in
 function PublicRoute({ children }) {
     const { isAuthenticated, loading } = useAuth();
-
     if (loading) return null;
-
     return isAuthenticated
         ? <Navigate to="/dashboard" replace />
         : children;
@@ -35,22 +32,10 @@ function AppRoutes() {
     return (
         <Routes>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
-
-            <Route path="/login" element={
-                <PublicRoute><LoginPage /></PublicRoute>
-            } />
-
-            <Route path="/register" element={
-                <PublicRoute><RegisterPage /></PublicRoute>
-            } />
-
-            <Route path="/dashboard" element={
-                <ProtectedRoute><DashboardPage /></ProtectedRoute>
-            } />
-
-            <Route path="/document/:id" element={
-                <ProtectedRoute><DocumentPage /></ProtectedRoute>
-            } />
+            <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
+            <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
+            <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+            <Route path="/document/:id" element={<ProtectedRoute><DocumentPage /></ProtectedRoute>} />
         </Routes>
     );
 }
@@ -59,7 +44,9 @@ export default function App() {
     return (
         <BrowserRouter>
             <AuthProvider>
-                <AppRoutes />
+                <SocketProvider>
+                    <AppRoutes />
+                </SocketProvider>
             </AuthProvider>
         </BrowserRouter>
     );
