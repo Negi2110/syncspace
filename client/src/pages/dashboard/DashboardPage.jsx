@@ -5,6 +5,8 @@ import { documentService } from '../../services/documentService';
 import Navbar from '../../components/layout/Navbar';
 import DocumentCard from '../../components/ui/DocumentCard';
 import Button from '../../components/ui/Button';
+import { Toast, useToast } from '../../components/ui/Toast';
+
 
 export default function DashboardPage() {
     const [documents, setDocuments] = useState([]);
@@ -12,6 +14,7 @@ export default function DashboardPage() {
     const [creating, setCreating] = useState(false);
     const [search, setSearch] = useState('');
     const [error, setError] = useState('');
+    const { toast, showToast, hideToast } = useToast();
 
     const { user } = useAuth();
     const navigate = useNavigate();
@@ -50,8 +53,9 @@ export default function DashboardPage() {
         try {
             await documentService.delete(id);
             setDocuments(prev => prev.filter(d => d.id !== id));
+            showToast('Document deleted');
         } catch (err) {
-            setError('Failed to delete document');
+            showToast('Failed to delete document', 'error');
         }
     }
 
@@ -153,6 +157,13 @@ export default function DashboardPage() {
                     </div>
                 )}
             </main>
+            {toast && (
+                <Toast
+                    message={toast.message}
+                    type={toast.type}
+                    onClose={hideToast}
+                />
+            )}
         </div>
     );
 }

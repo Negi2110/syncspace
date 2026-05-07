@@ -9,6 +9,7 @@ import VoiceRoom from '../../components/editor/VoiceRoom';
 import AISidebar from '../../components/editor/AISidebar';
 import VersionHistory from '../../components/editor/VersionHistory';
 import ShareModal from '../../components/ui/ShareModal';
+import { Toast, useToast } from '../../components/ui/Toast';
 
 function useDebounce(callback, delay) {
     const timeoutRef = useRef(null);
@@ -34,8 +35,77 @@ export default function DocumentPage() {
     const [aiOpen, setAiOpen] = useState(false);
     const [versionOpen, setVersionOpen] = useState(false);
     const [shareOpen, setShareOpen] = useState(false);
+    const { toast, showToast, hideToast } = useToast();
 
+   
 
+    
+    async function fetchDocument() {
+        try {
+            const res = await documentService.getById(id);
+            setDocument(res.data.data);
+            setTitle(res.data.data.title);
+        } catch (err) {
+            setError('Document not found or access denied');
+        } finally {
+            setLoading(false);
+        }
+    }
+    async function handleExport(format) {
+        try {
+            const token = localStorage.getItem('accessToken');
+            const response = await fetch(
+                `http://localhost:5000/api/v1/documents/${id}/export/${format}`,
+                {
+                    headers: { Authorization: `Bearer ${token}` }
+                }
+            );
+
+            if (!response.ok) throw new Error('Export failed');
+
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = window.document.createElement('a');
+            a.href = url;
+            a.download = `${title}.${format === 'pdf' ? 'pdf' : 'md'}`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+            showToast(`Exported as ${format.toUpperCase()} successfully`);
+        } catch (err) {
+            showToast('Export failed', 'error');
+        }
+    }
+    const saveContent = useCallback(async (content) => {
+        try {
+            setSaveStatus('saving');
+            await documentService.update(id, { content });
+            setSaveStatus('saved');
+        } catch (err) {
+            setSaveStatus('error');
+        }
+    }, [id]);
+ // Keyboard shortcuts
+    useEffect(() => {
+        function handleKeyDown(e) {
+            // Ctrl/Cmd + S → force save
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault();
+                if (document?.content) {
+                    saveContent(document.content);
+                    showToast('Document saved');
+                }
+            }
+            // Escape → close sidebars
+            if (e.key === 'Escape') {
+                setAiOpen(false);
+                setVersionOpen(false);
+                setShareOpen(false);
+            }
+        }
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [document, saveContent]);
     useEffect(() => {
         fetchDocument();
     }, [id]);
@@ -68,27 +138,6 @@ export default function DocumentPage() {
         };
     }, [socket, id, user]);
 
-    async function fetchDocument() {
-        try {
-            const res = await documentService.getById(id);
-            setDocument(res.data.data);
-            setTitle(res.data.data.title);
-        } catch (err) {
-            setError('Document not found or access denied');
-        } finally {
-            setLoading(false);
-        }
-    }
-
-    const saveContent = useCallback(async (content) => {
-        try {
-            setSaveStatus('saving');
-            await documentService.update(id, { content });
-            setSaveStatus('saved');
-        } catch (err) {
-            setSaveStatus('error');
-        }
-    }, [id]);
 
     const debouncedSave = useDebounce(saveContent, 3000);
 
@@ -179,59 +228,62 @@ export default function DocumentPage() {
                     )}
                 </div>
 
-                {/* Right — voice + presence + save status */}
-                {/* Right — AI + voice + presence + save status */}
-                <div className="flex items-center gap-4">
+                {/* Right side */}
+                <div className="flex items-center gap-2">
                     <button
                         onClick={() => setAiOpen(prev => !prev)}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg
-                    text-xs transition-all
-                    ${aiOpen
-                                ? 'bg-primary-600 text-white'
-                                : 'bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300'
-                            }`}
                         title="AI Assistant"
+                        className={`px-2.5 py-1.5 rounded-lg text-xs transition-all
+            ${aiOpen ? 'bg-primary-600 text-white' : 'bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300'}`}
                     >
-                        <span>🤖</span>
-                        <span className="hidden md:block">AI</span>
-                    </button>
-                    {/* Version History Button */}
-                    <button
-                        onClick={() => setVersionOpen(prev => !prev)}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg
-                text-xs transition-all
-                ${versionOpen
-                                ? 'bg-primary-600 text-white'
-                                : 'bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300'
-                            }`}
-                        title="Version History"
-                    >
-                        <span>🕐</span>
-                        <span className="hidden md:block">History</span>
+                        🤖
                     </button>
 
-                    {/* Share Button */}
+                    <button
+                        onClick={() => setVersionOpen(prev => !prev)}
+                        title="Version History"
+                        className={`px-2.5 py-1.5 rounded-lg text-xs transition-all
+            ${versionOpen ? 'bg-primary-600 text-white' : 'bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300'}`}
+                    >
+                        🕐
+                    </button>
+
                     <button
                         onClick={() => setShareOpen(true)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg
-               text-xs bg-slate-800 hover:bg-slate-700
-               border border-slate-700 text-slate-300 transition-all"
-                        title="Share document"
+                        title="Share"
+                        className="px-2.5 py-1.5 rounded-lg text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 transition-all"
                     >
-                        <span>🔗</span>
-                        <span className="hidden md:block">Share</span>
+                        🔗
                     </button>
+
+                    <button
+                        onClick={() => handleExport('markdown')}
+                        title="Export Markdown"
+                        className="px-2.5 py-1.5 rounded-lg text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 transition-all"
+                    >
+                        .md
+                    </button>
+
+                    <button
+                        onClick={() => handleExport('pdf')}
+                        title="Export PDF"
+                        className="px-2.5 py-1.5 rounded-lg text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 transition-all"
+                    >
+                        PDF
+                    </button>
+
                     <VoiceRoom documentId={id} />
                     <PresenceAvatars users={presence} />
+
                     <span className={`text-xs ${saveStatus === 'saved' ? 'text-slate-500' :
                             saveStatus === 'saving' ? 'text-yellow-400' :
                                 saveStatus === 'unsaved' ? 'text-slate-400' :
                                     'text-red-400'
                         }`}>
-                        {saveStatus === 'saved' && '✓ Saved'}
-                        {saveStatus === 'saving' && 'Saving...'}
-                        {saveStatus === 'unsaved' && 'Unsaved changes'}
-                        {saveStatus === 'error' && 'Save failed'}
+                        {saveStatus === 'saved' && '✓'}
+                        {saveStatus === 'saving' && '...'}
+                        {saveStatus === 'unsaved' && '●'}
+                        {saveStatus === 'error' && '✗'}
                     </span>
                 </div>
             </div>
@@ -268,6 +320,13 @@ export default function DocumentPage() {
                 document={document}
                 onUpdate={(updated) => setDocument(updated)}
             />
+            {toast && (
+                <Toast
+                    message={toast.message}
+                    type={toast.type}
+                    onClose={hideToast}
+                />
+            )}
         </div>
     );
 }
