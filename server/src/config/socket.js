@@ -1,15 +1,19 @@
 const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
 const ServerConfig = require('./server-config');
-const { UserRepository } = require('../repositories');
+const {
+    UserRepository,
+    DocumentRepository,
+    CollaboratorRepository
+} = require('../repositories');
 
 const userRepository = new UserRepository();
+const documentRepository = new DocumentRepository();
+const collaboratorRepository = new CollaboratorRepository();
 
 // Track presence per document
-// { documentId: [{ userId, name, avatar, socketId, color }] }
 const documentPresence = {};
 
-// Assign unique color to each user in a document
 const CURSOR_COLORS = [
     '#F44336', '#E91E63', '#9C27B0', '#673AB7',
     '#3F51B5', '#2196F3', '#00BCD4', '#009688',
@@ -50,42 +54,66 @@ function initSocket(server) {
         console.log(`User connected: ${socket.user.name} (${socket.id})`);
 
         // ─── JOIN DOCUMENT ───────────────────────────────────
-        socket.on('join-document', (documentId) => {
-            socket.join(documentId);
-            socket.currentDocument = documentId;
+        socket.on('join-document', async (documentId) => {
+            try {
+                // Check document exists
+                const document = await documentRepository.get(documentId);
 
-            if (!documentPresence[documentId]) {
-                documentPresence[documentId] = [];
+                // Check if owner
+                const isOwner = document.ownerId === socket.user.id;
+
+                if (!isOwner) {
+                    // Check if collaborator
+                    const collaboration = await collaboratorRepository.findAccess(
+                        documentId,
+                        socket.user.id
+                    );
+
+                    if (!collaboration) {
+                        socket.emit('access-denied', {
+                            message: 'You do not have access to this document'
+                        });
+                        console.log(`${socket.user.name} denied access to doc ${documentId}`);
+                        return;
+                    }
+                }
+
+                // Access verified — join room
+                socket.join(documentId);
+                socket.currentDocument = documentId;
+
+                if (!documentPresence[documentId]) {
+                    documentPresence[documentId] = [];
+                }
+
+                documentPresence[documentId] = documentPresence[documentId]
+                    .filter(u => u.userId !== socket.user.id);
+
+                documentPresence[documentId].push({
+                    userId: socket.user.id,
+                    name: socket.user.name,
+                    avatar: socket.user.avatar,
+                    socketId: socket.id,
+                    color: getUserColor(documentId, socket.user.id)
+                });
+
+                io.to(documentId).emit(
+                    'presence-update',
+                    documentPresence[documentId]
+                );
+
+                console.log(`${socket.user.name} joined document ${documentId}`);
+
+            } catch (error) {
+                socket.emit('access-denied', {
+                    message: 'Document not found'
+                });
             }
-
-            // Remove stale entry for this user
-            documentPresence[documentId] = documentPresence[documentId]
-                .filter(u => u.userId !== socket.user.id);
-
-            // Add with color
-            documentPresence[documentId].push({
-                userId: socket.user.id,
-                name: socket.user.name,
-                avatar: socket.user.avatar,
-                socketId: socket.id,
-                color: getUserColor(documentId, socket.user.id)
-            });
-
-            // Broadcast presence to room
-            io.to(documentId).emit(
-                'presence-update',
-                documentPresence[documentId]
-            );
-
-            console.log(`${socket.user.name} joined document ${documentId}`);
         });
 
         // ─── DOCUMENT CHANGE ─────────────────────────────────
-        // User typed something — broadcast to others in room
         socket.on('document-change', (data) => {
             const { documentId, delta, timestamp } = data;
-
-            // Broadcast to everyone EXCEPT the sender
             socket.to(documentId).emit('document-update', {
                 delta,
                 timestamp,
@@ -95,11 +123,8 @@ function initSocket(server) {
         });
 
         // ─── CURSOR MOVE ──────────────────────────────────────
-        // User moved cursor — broadcast position to others
         socket.on('cursor-move', (data) => {
             const { documentId, position } = data;
-
-            // Get this user's color
             const presenceEntry = (documentPresence[documentId] || [])
                 .find(u => u.userId === socket.user.id);
 
@@ -141,67 +166,51 @@ function initSocket(server) {
         });
 
         // ─── VOICE ROOM ───────────────────────────────────────
-// User starts a voice call in a document
-socket.on('voice-start', (documentId) => {
-    // Notify everyone in the document room
-    // that a call has started
-    io.to(documentId).emit('voice-room-started', {
-        startedBy: {
-            userId: socket.user.id,
-            name: socket.user.name,
-            avatar: socket.user.avatar
-        },
-        documentId
-    });
+        socket.on('voice-start', (documentId) => {
+            io.to(documentId).emit('voice-room-started', {
+                startedBy: {
+                    userId: socket.user.id,
+                    name: socket.user.name,
+                    avatar: socket.user.avatar
+                },
+                documentId
+            });
+            console.log(`${socket.user.name} started voice room in doc ${documentId}`);
+        });
 
-    console.log(`${socket.user.name} started voice room in doc ${documentId}`);
-});
+        socket.on('voice-join', (data) => {
+            const { documentId, peerId } = data;
+            socket.to(documentId).emit('voice-user-joined', {
+                userId: socket.user.id,
+                name: socket.user.name,
+                avatar: socket.user.avatar,
+                peerId
+            });
+            console.log(`${socket.user.name} joined voice room in doc ${documentId}`);
+        });
 
-// User joins the voice call
-socket.on('voice-join', (data) => {
-    const { documentId, peerId } = data;
+        socket.on('voice-speaking', (data) => {
+            const { documentId, isSpeaking } = data;
+            socket.to(documentId).emit('voice-speaking-update', {
+                userId: socket.user.id,
+                isSpeaking
+            });
+        });
 
-    // Tell everyone else in the room that
-    // this user joined with their peerId
-    // Other users will initiate peer connection
-    socket.to(documentId).emit('voice-user-joined', {
-        userId: socket.user.id,
-        name: socket.user.name,
-        avatar: socket.user.avatar,
-        peerId
-    });
+        socket.on('voice-leave', (documentId) => {
+            socket.to(documentId).emit('voice-user-left', {
+                userId: socket.user.id,
+                name: socket.user.name
+            });
+            console.log(`${socket.user.name} left voice room in doc ${documentId}`);
+        });
 
-    console.log(`${socket.user.name} joined voice room in doc ${documentId}`);
-});
-
-// User is speaking — detected via Web Audio API
-socket.on('voice-speaking', (data) => {
-    const { documentId, isSpeaking } = data;
-
-    socket.to(documentId).emit('voice-speaking-update', {
-        userId: socket.user.id,
-        isSpeaking
-    });
-});
-
-// User leaves the voice call
-socket.on('voice-leave', (documentId) => {
-    socket.to(documentId).emit('voice-user-left', {
-        userId: socket.user.id,
-        name: socket.user.name
-    });
-
-    console.log(`${socket.user.name} left voice room in doc ${documentId}`);
-});
-
-// User ends the entire call for everyone
-socket.on('voice-end', (documentId) => {
-    io.to(documentId).emit('voice-room-ended', {
-        endedBy: socket.user.name
-    });
-
-    console.log(`${socket.user.name} ended voice room in doc ${documentId}`);
-});
+        socket.on('voice-end', (documentId) => {
+            io.to(documentId).emit('voice-room-ended', {
+                endedBy: socket.user.name
+            });
+            console.log(`${socket.user.name} ended voice room in doc ${documentId}`);
+        });
     });
 
     return io;

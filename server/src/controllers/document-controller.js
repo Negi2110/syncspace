@@ -105,10 +105,20 @@ async function revokeShareLink(req, res) {
         return res.status(error.statusCode).json(ErrorResponse);
     }
 }
-
+async function getAllAccessible(req, res) {
+    try {
+        const documents = await DocumentService.getAllAccessible(req.user.id);
+        SuccessResponse.data = documents;
+        return res.status(StatusCodes.OK).json(SuccessResponse);
+    } catch (error) {
+        ErrorResponse.error = error;
+        return res.status(error.statusCode).json(ErrorResponse);
+    }
+}
 module.exports = {
     createDocument,
     getAllDocuments,
+    getAllAccessible,  
     getDocument,
     updateDocument,
     deleteDocument,

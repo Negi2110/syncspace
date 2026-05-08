@@ -125,10 +125,22 @@ async function revokeShareLink(documentId) {
         );
     }
 }
-
+async function getAllAccessible(userId) {
+    try {
+        const documents = await documentRepository.getAllAccessible(userId);
+        return documents;
+    } catch (error) {
+        if (error instanceof AppError) throw error;
+        throw new AppError(
+            'Cannot fetch documents',
+            StatusCodes.INTERNAL_SERVER_ERROR
+        );
+    }
+}
 module.exports = {
     createDocument,
     getAllDocuments,
+    getAllAccessible,
     getDocument,
     updateDocument,
     deleteDocument,

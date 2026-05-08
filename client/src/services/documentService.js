@@ -8,7 +8,7 @@ export const documentService = {
     create: (data) => api.post('/documents', data),
     
     update: (id, data) => api.patch(`/documents/${id}`, data),
-    
+    getAllAccessible: () => api.get('/documents/accessible'),   
     delete: (id) => api.delete(`/documents/${id}`),
     
     generateShareLink: (id, access) =>

@@ -25,7 +25,7 @@ export default function DashboardPage() {
 
     async function fetchDocuments() {
         try {
-            const res = await documentService.getAll();
+            const res = await documentService.getAllAccessible();
             setDocuments(res.data.data);
         } catch (err) {
             setError('Failed to load documents');
