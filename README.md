@@ -1,5 +1,10 @@
 # SyncSpace
 
+**Live Demo:** https://syncspace-sand.vercel.app  
+**Demo credentials:** aman@syncspace.com / password123
+
+Collaborative document editor for developers...
+
 Collaborative document editor for developers. Real-time editing, AI assistance, voice rooms via WebRTC.
 
 ## Tech Stack
