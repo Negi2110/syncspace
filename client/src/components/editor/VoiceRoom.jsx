@@ -108,11 +108,11 @@ export default function VoiceRoom({ documentId }) {
             streamRef.current = stream;
 
             // Dynamic import PeerJS
-            const { Peer } = await import('peerjs');
             const peer = new Peer({
-                host: 'localhost',
-                port: 5000,
-                path: '/peerjs'
+                host: import.meta.env.VITE_PEER_HOST || 'localhost',
+                port: import.meta.env.VITE_PEER_PORT || 5000,
+                path: '/peerjs',
+                secure: import.meta.env.PROD || false
             });
 
             peer.on('open', (peerId) => {
@@ -181,9 +181,10 @@ export default function VoiceRoom({ documentId }) {
 
             const { Peer } = await import('peerjs');
             const peer = new Peer({
-                host: 'localhost',
-                port: 5000,
-                path: '/peerjs'
+                host: import.meta.env.VITE_PEER_HOST || 'localhost',
+                port: import.meta.env.VITE_PEER_PORT || 5000,
+                path: '/peerjs',
+                secure: import.meta.env.PROD || false
             });
 
             peer.on('open', (peerId) => {
@@ -296,9 +297,9 @@ export default function VoiceRoom({ documentId }) {
                                     text-white text-xs font-medium
                                     transition-all
                                     ${speakingUsers.has(p.userId)
-                                        ? 'ring-2 ring-green-400 ring-offset-1 ring-offset-slate-900'
-                                        : ''
-                                    }`}
+                                ? 'ring-2 ring-green-400 ring-offset-1 ring-offset-slate-900'
+                                : ''
+                            }`}
                     >
                         {p.name?.charAt(0).toUpperCase()}
                     </div>
@@ -308,11 +309,10 @@ export default function VoiceRoom({ documentId }) {
             {/* Mute button */}
             <button
                 onClick={toggleMute}
-                className={`p-1.5 rounded-lg text-xs transition-all ${
-                    isMuted
+                className={`p-1.5 rounded-lg text-xs transition-all ${isMuted
                         ? 'bg-red-600 text-white'
                         : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                }`}
+                    }`}
                 title={isMuted ? 'Unmute' : 'Mute'}
             >
                 {isMuted ? (
