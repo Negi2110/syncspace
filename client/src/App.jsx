@@ -6,6 +6,7 @@ import RegisterPage from './pages/auth/RegisterPage';
 import DashboardPage from './pages/dashboard/DashboardPage';
 import DocumentPage from './pages/document/DocumentPage';
 import SharedDocumentPage from './pages/document/SharedDocumentPage';
+import LandingPage from './pages/LandingPage';
 
 
 function ProtectedRoute({ children }) {
@@ -33,7 +34,7 @@ function PublicRoute({ children }) {
 function AppRoutes() {
     return (
         <Routes>
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
             <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
             <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
