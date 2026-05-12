@@ -37,9 +37,9 @@ export default function DocumentPage() {
     const [shareOpen, setShareOpen] = useState(false);
     const { toast, showToast, hideToast } = useToast();
 
-   
 
-    
+
+
     async function fetchDocument() {
         try {
             const res = await documentService.getById(id);
@@ -84,7 +84,7 @@ export default function DocumentPage() {
             setSaveStatus('error');
         }
     }, [id]);
- // Keyboard shortcuts
+    // Keyboard shortcuts
     useEffect(() => {
         function handleKeyDown(e) {
             // Ctrl/Cmd + S → force save
@@ -276,9 +276,9 @@ export default function DocumentPage() {
                     <PresenceAvatars users={presence} />
 
                     <span className={`text-xs ${saveStatus === 'saved' ? 'text-slate-500' :
-                            saveStatus === 'saving' ? 'text-yellow-400' :
-                                saveStatus === 'unsaved' ? 'text-slate-400' :
-                                    'text-red-400'
+                        saveStatus === 'saving' ? 'text-yellow-400' :
+                            saveStatus === 'unsaved' ? 'text-slate-400' :
+                                'text-red-400'
                         }`}>
                         {saveStatus === 'saved' && '✓'}
                         {saveStatus === 'saving' && '...'}
@@ -289,14 +289,13 @@ export default function DocumentPage() {
             </div>
 
             {/* Editor */}
+            {/* Editor */}
             <div className={`flex-1 pt-14 transition-all duration-300 ${(aiOpen || versionOpen) ? 'mr-80' : ''}`}>
-                <div className="max-w-4xl mx-auto min-h-full">
-                    <Editor
-                        content={document?.content}
-                        onChange={handleContentChange}
-                        editable={true}
-                    />
-                </div>
+                <Editor
+                    content={document?.content}
+                    onChange={handleContentChange}
+                    editable={true}
+                />
             </div>
 
             <AISidebar

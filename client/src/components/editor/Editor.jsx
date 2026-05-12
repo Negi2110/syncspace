@@ -20,29 +20,34 @@ export default function Editor({ content, onChange, editable = true }) {
         },
     });
 
-    // Update content when it changes externally (real-time sync)
     useEffect(() => {
         if (!editor || !content) return;
-
         const currentContent = JSON.stringify(editor.getJSON());
         if (currentContent !== content) {
             editor.commands.setContent(JSON.parse(content), false);
         }
     }, [content]);
 
-    // Update editable state
     useEffect(() => {
         if (!editor) return;
         editor.setEditable(editable);
     }, [editor, editable]);
 
     return (
-        <div className="flex flex-col h-full">
-            {editable && <Toolbar editor={editor} />}
-            <EditorContent
-                editor={editor}
-                className="tiptap-editor flex-1 overflow-y-auto"
-            />
+        <div className="flex flex-col min-h-full">
+            {editable && (
+                <div className="sticky top-14 z-40 bg-slate-900/95 backdrop-blur border-b border-slate-800">
+                    <Toolbar editor={editor} />
+                </div>
+            )}
+            <div className="flex-1 py-12 px-6">
+                <div className="max-w-3xl mx-auto">
+                    <EditorContent
+                        editor={editor}
+                        className="tiptap-editor"
+                    />
+                </div>
+            </div>
         </div>
     );
 }
